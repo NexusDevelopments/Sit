@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Counter Debug Screen</title>
+    <style>
+      :root {
+        --bg: #f5f3ee;
+        --panel: #ffffff;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --accent: #0f766e;
+        --ok: #15803d;
+        --warn: #b45309;
+        --err: #b91c1c;
+        --console-bg: #1e1e1e;
+        --console-fg: #d4d4d4;
+        --console-muted: #8a8a8a;
+        --console-info: #4fc1ff;
+        --console-warn: #dcdcaa;
+        --console-error: #f48771;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 10% 10%, rgba(15, 118, 110, 0.12), transparent 45%),
+          radial-gradient(circle at 90% 90%, rgba(21, 128, 61, 0.08), transparent 40%),
+          var(--bg);
+      }
+
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 18px 36px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 3vw, 2rem);
+      }
+
+      .muted {
+        color: var(--muted);
+        margin: 4px 0 0;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: rgba(15, 118, 110, 0.12);
+        color: var(--accent);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(31, 41, 55, 0.1);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .label {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin-bottom: 6px;
+      }
+
+      .value {
+        font-size: 1.3rem;
+        font-weight: 700;
+      }
+
+      .status-ok {
+        color: var(--ok);
+      }
+
+      .status-warn {
+        color: var(--warn);
+      }
+
+      .status-err {
+        color: var(--err);
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--accent);
+        color: #fff;
+      }
+
+      button.secondary {
+        background: #374151;
+      }
+
+      .console {
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(31, 41, 55, 0.12);
+      }
+
+      .console-head {
+        background: #2a2d2e;
+        color: #e5e7eb;
+        padding: 10px 12px;
+        font-size: 0.86rem;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .console-body {
+        background: var(--console-bg);
+        color: var(--console-fg);
+        margin: 0;
+        padding: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.83rem;
+        line-height: 1.45;
+        max-height: 56vh;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+
+      .line {
+        display: block;
+      }
+
+      .line .ts {
+        color: var(--console-muted);
+      }
+
+      .line.info .lvl {
+        color: var(--console-info);
+      }
+
+      .line.warn .lvl {
+        color: var(--console-warn);
+      }
+
+      .line.error .lvl {
+        color: var(--console-error);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="header">
+        <div>
+          <h1>Counter Diagnostics</h1>
+          <p class="muted">Live status and logs for the visit service.</p>
+        </div>
+        <div class="pill" id="liveBadge">Checking status...</div>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <div class="label">Current Mode</div>
+          <div class="value" id="modeValue">-</div>
+        </div>
+        <div class="card">
+          <div class="label">Last Visits Value</div>
+          <div class="value" id="visitsValue">-</div>
+        </div>
+        <div class="card">
+          <div class="label">Total API Hits</div>
+          <div class="value" id="hitsValue">-</div>
+        </div>
+        <div class="card">
+          <div class="label">Service State</div>
+          <div class="value" id="stateValue">-</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <button id="refreshBtn">Refresh Status</button>
+        <button id="visitBtn" class="secondary">Trigger /api/visit</button>
+      </div>
+
+      <section class="console">
+        <div class="console-head">
+          <span>Debug Console</span>
+          <span id="logCount">0 lines</span>
+        </div>
+        <div class="console-body" id="consoleOut"></div>
+      </section>
+    </div>
+
+    <script>
+      const els = {
+        liveBadge: document.getElementById('liveBadge'),
+        modeValue: document.getElementById('modeValue'),
+        visitsValue: document.getElementById('visitsValue'),
+        hitsValue: document.getElementById('hitsValue'),
+        stateValue: document.getElementById('stateValue'),
+        consoleOut: document.getElementById('consoleOut'),
+        logCount: document.getElementById('logCount')
+      };
+
+      function lineHtml(log) {
+        const safeMeta = JSON.stringify(log.meta || {});
+        return `<span class="line ${log.level}"><span class="ts">${log.time}</span> <span class="lvl">${log.level.toUpperCase()}</span> ${log.event} ${safeMeta}</span>`;
+      }
+
+      function renderLogs(logs) {
+        els.logCount.textContent = `${logs.length} lines`;
+        els.consoleOut.innerHTML = logs.map(lineHtml).join('');
+        els.consoleOut.scrollTop = els.consoleOut.scrollHeight;
+      }
+
+      function renderStatus(status) {
+        const hasError = Boolean(status.lastError);
+        els.modeValue.textContent = status.mode || 'unknown';
+        els.visitsValue.textContent = String(status.lastVisits ?? '-');
+        els.hitsValue.textContent = String(status.totalHits ?? '-');
+
+        if (hasError) {
+          els.stateValue.textContent = 'DEGRADED';
+          els.stateValue.className = 'value status-warn';
+          els.liveBadge.textContent = `Warning: ${status.lastError}`;
+        } else {
+          els.stateValue.textContent = 'HEALTHY';
+          els.stateValue.className = 'value status-ok';
+          els.liveBadge.textContent = 'Healthy';
+        }
+
+        renderLogs(status.logs || []);
+      }
+
+      async function fetchStatus() {
+        try {
+          const response = await fetch('/api/status');
+          const status = await response.json();
+          if (!response.ok) {
+            throw new Error(status.error || 'Status request failed');
+          }
+
+          renderStatus(status);
+        } catch (err) {
+          els.liveBadge.textContent = `Error: ${err.message}`;
+          els.stateValue.textContent = 'ERROR';
+          els.stateValue.className = 'value status-err';
+        }
+      }
+
+      async function triggerVisit() {
+        try {
+          await fetch('/api/visit?debug=1');
+        } catch {
+          // Status panel shows failures on next refresh.
+        }
+
+        fetchStatus();
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', fetchStatus);
+      document.getElementById('visitBtn').addEventListener('click', triggerVisit);
+
+      fetchStatus();
+      setInterval(fetchStatus, 3000);
+    </script>
+  </body>
+</html>
