@@ -87,10 +87,30 @@
         <span>visits</span>
       </div>
       <p class="hint">Refresh still adds a new visit.</p>
+      <p class="hint"><a href="/cds">Open diagnostics (/cds)</a></p>
     </main>
 
     <script>
       const cacheKey = 'sit-visitor-counter-cache';
+      const logKey = 'sit-debug-logs';
+
+      function pushDebug(level, event, meta) {
+        const raw = localStorage.getItem(logKey);
+        const logs = raw ? JSON.parse(raw) : [];
+
+        logs.push({
+          time: new Date().toISOString(),
+          level,
+          event,
+          meta: meta || {}
+        });
+
+        if (logs.length > 200) {
+          logs.shift();
+        }
+
+        localStorage.setItem(logKey, JSON.stringify(logs));
+      }
 
       function getCachedVisits() {
         const raw = localStorage.getItem(cacheKey);
@@ -104,26 +124,11 @@
 
       async function updateVisitCount() {
         const countEl = document.getElementById('visitCount');
-        countEl.textContent = getCachedVisits();
-
-        try {
-          const response = await fetch('/api/visit');
-          const data = await response.json();
-
-          if (!response.ok || typeof data.visits !== 'number') {
-            const fallback = getCachedVisits() + 1;
-            setCachedVisits(fallback);
-            countEl.textContent = fallback;
-            return;
-          }
-
-          setCachedVisits(data.visits);
-          countEl.textContent = data.visits;
-        } catch {
-          const fallback = getCachedVisits() + 1;
-          setCachedVisits(fallback);
-          countEl.textContent = fallback;
-        }
+        const next = getCachedVisits() + 1;
+        setCachedVisits(next);
+        countEl.textContent = next;
+        console.log('[sit] visit incremented', next);
+        pushDebug('info', 'visit_incremented', { visits: next, mode: 'client-only' });
       }
 
       updateVisitCount();

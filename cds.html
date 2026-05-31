@@ -185,7 +185,7 @@
       <div class="header">
         <div>
           <h1>Counter Diagnostics</h1>
-          <p class="muted">Live status and logs for the visit service.</p>
+          <p class="muted">Live status and logs for the client-only visit service.</p>
         </div>
         <div class="pill" id="liveBadge">Checking status...</div>
       </div>
@@ -200,7 +200,7 @@
           <div class="value" id="visitsValue">-</div>
         </div>
         <div class="card">
-          <div class="label">Total API Hits</div>
+          <div class="label">Recorded Events</div>
           <div class="value" id="hitsValue">-</div>
         </div>
         <div class="card">
@@ -211,7 +211,7 @@
 
       <div class="toolbar">
         <button id="refreshBtn">Refresh Status</button>
-        <button id="visitBtn" class="secondary">Trigger /api/visit</button>
+        <button id="visitBtn" class="secondary">Simulate Visit</button>
       </div>
 
       <section class="console">
@@ -224,6 +224,9 @@
     </div>
 
     <script>
+      const cacheKey = 'sit-visitor-counter-cache';
+      const logKey = 'sit-debug-logs';
+
       const els = {
         liveBadge: document.getElementById('liveBadge'),
         modeValue: document.getElementById('modeValue'),
@@ -233,6 +236,35 @@
         consoleOut: document.getElementById('consoleOut'),
         logCount: document.getElementById('logCount')
       };
+
+      function readLogs() {
+        try {
+          const raw = localStorage.getItem(logKey);
+          return raw ? JSON.parse(raw) : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function pushLog(level, event, meta) {
+        const logs = readLogs();
+        logs.push({
+          time: new Date().toISOString(),
+          level,
+          event,
+          meta: meta || {}
+        });
+        if (logs.length > 200) {
+          logs.shift();
+        }
+        localStorage.setItem(logKey, JSON.stringify(logs));
+      }
+
+      function readVisits() {
+        const raw = localStorage.getItem(cacheKey);
+        const visits = Number(raw);
+        return Number.isFinite(visits) && visits >= 0 ? visits : 0;
+      }
 
       function lineHtml(log) {
         const safeMeta = JSON.stringify(log.meta || {});
@@ -245,56 +277,41 @@
         els.consoleOut.scrollTop = els.consoleOut.scrollHeight;
       }
 
-      function renderStatus(status) {
-        const hasError = Boolean(status.lastError);
-        els.modeValue.textContent = status.mode || 'unknown';
-        els.visitsValue.textContent = String(status.lastVisits ?? '-');
-        els.hitsValue.textContent = String(status.totalHits ?? '-');
+      function renderStatus() {
+        const logs = readLogs();
+        const visits = readVisits();
+        const hasError = logs.some((log) => log.level === 'error');
+
+        els.modeValue.textContent = 'client-only (no serverless)';
+        els.visitsValue.textContent = String(visits);
+        els.hitsValue.textContent = String(logs.length);
 
         if (hasError) {
           els.stateValue.textContent = 'DEGRADED';
           els.stateValue.className = 'value status-warn';
-          els.liveBadge.textContent = `Warning: ${status.lastError}`;
+          els.liveBadge.textContent = 'Warning logs found';
         } else {
           els.stateValue.textContent = 'HEALTHY';
           els.stateValue.className = 'value status-ok';
           els.liveBadge.textContent = 'Healthy';
         }
 
-        renderLogs(status.logs || []);
+        renderLogs(logs.slice(-80));
       }
 
-      async function fetchStatus() {
-        try {
-          const response = await fetch('/api/status');
-          const status = await response.json();
-          if (!response.ok) {
-            throw new Error(status.error || 'Status request failed');
-          }
-
-          renderStatus(status);
-        } catch (err) {
-          els.liveBadge.textContent = `Error: ${err.message}`;
-          els.stateValue.textContent = 'ERROR';
-          els.stateValue.className = 'value status-err';
-        }
+      function triggerVisit() {
+        const next = readVisits() + 1;
+        localStorage.setItem(cacheKey, String(next));
+        pushLog('info', 'visit_simulated_from_cds', { visits: next });
+        console.log('[sit] simulated visit', next);
+        renderStatus();
       }
 
-      async function triggerVisit() {
-        try {
-          await fetch('/api/visit?debug=1');
-        } catch {
-          // Status panel shows failures on next refresh.
-        }
-
-        fetchStatus();
-      }
-
-      document.getElementById('refreshBtn').addEventListener('click', fetchStatus);
+      document.getElementById('refreshBtn').addEventListener('click', renderStatus);
       document.getElementById('visitBtn').addEventListener('click', triggerVisit);
 
-      fetchStatus();
-      setInterval(fetchStatus, 3000);
+      renderStatus();
+      setInterval(renderStatus, 3000);
     </script>
   </body>
 </html>
