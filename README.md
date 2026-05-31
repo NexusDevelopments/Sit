@@ -2,7 +2,7 @@
 
 Basic visitor counter site.
 
-This site uses CountAPI for a simple hosted visit counter.
+This site uses a client-only visit counter (localStorage) to avoid serverless runtime issues.
 
 ## Deploy on Vercel
 
@@ -11,6 +11,11 @@ This site uses CountAPI for a simple hosted visit counter.
 3. Deploy.
 
 No extra environment variables or storage setup needed.
+
+Routes:
+
+- `/` main site
+- `/cds` diagnostics console page
 
 ## Run
 

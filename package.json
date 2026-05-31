@@ -4,6 +4,6 @@
   "private": true,
   "description": "A basic site that counts visits.",
   "scripts": {
-    "start": "node server.js"
+    "start": "node local-server.js"
   }
 }
