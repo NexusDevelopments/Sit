@@ -81,18 +81,63 @@
   <body>
     <main class="card">
       <h1>Welcome</h1>
-      <p>This page keeps track of how many times it has been visited.</p>
+      <p>This page tracks global visits across all users and visit types.</p>
       <div class="count" aria-live="polite">
         <strong id="visitCount">...</strong>
-        <span>visits</span>
+        <span>total visits</span>
       </div>
-      <p class="hint">Refresh still adds a new visit.</p>
+      <p class="hint">Counts page opens, reloads, back/forward visits, and visibility returns.</p>
       <p class="hint"><a href="/cds">Open diagnostics (/cds)</a></p>
     </main>
 
     <script>
       const cacheKey = 'sit-visitor-counter-cache';
       const logKey = 'sit-debug-logs';
+      const uniqueKey = 'sit-unique-visitor-tracked-v1';
+      const sessionVisibilityKey = 'sit-visibility-tracked';
+      const countNamespace = 'nexusdevelopments-sit';
+
+      const counterKeys = {
+        total: 'total-visits',
+        homepage: 'homepage-visits',
+        unique: 'unique-visitors',
+        navNavigate: 'nav-navigate',
+        navReload: 'nav-reload',
+        navBackForward: 'nav-back-forward',
+        visibilityReturn: 'visibility-return',
+        externalReferrer: 'external-referrer'
+      };
+
+      function countApiUrl(action, key) {
+        return `https://api.countapi.xyz/${action}/${countNamespace}/${key}`;
+      }
+
+      async function countApiHit(key) {
+        const response = await fetch(countApiUrl('hit', key));
+        const data = await response.json();
+
+        if (!response.ok || typeof data.value !== 'number') {
+          throw new Error(`CountAPI hit failed for ${key}`);
+        }
+
+        return data.value;
+      }
+
+      async function countApiGet(key) {
+        const response = await fetch(countApiUrl('get', key));
+        const data = await response.json();
+
+        if (!response.ok || typeof data.value !== 'number') {
+          throw new Error(`CountAPI get failed for ${key}`);
+        }
+
+        return data.value;
+      }
+
+      function navigationType() {
+        const nav = performance.getEntriesByType('navigation')[0];
+        return nav && nav.type ? nav.type : 'navigate';
+      }
 
       function pushDebug(level, event, meta) {
         const raw = localStorage.getItem(logKey);
@@ -122,16 +167,92 @@
         localStorage.setItem(cacheKey, String(value));
       }
 
-      async function updateVisitCount() {
-        const countEl = document.getElementById('visitCount');
-        const next = getCachedVisits() + 1;
-        setCachedVisits(next);
-        countEl.textContent = next;
-        console.log('[sit] visit incremented', next);
-        pushDebug('info', 'visit_incremented', { visits: next, mode: 'client-only' });
+      async function trackVisitForms() {
+        const navType = navigationType();
+        const navKey =
+          navType === 'reload'
+            ? counterKeys.navReload
+            : navType === 'back_forward'
+              ? counterKeys.navBackForward
+              : counterKeys.navNavigate;
+
+        const tasks = [
+          countApiHit(counterKeys.total),
+          countApiHit(counterKeys.homepage),
+          countApiHit(navKey)
+        ];
+
+        if (!localStorage.getItem(uniqueKey)) {
+          tasks.push(
+            countApiHit(counterKeys.unique).then((value) => {
+              localStorage.setItem(uniqueKey, '1');
+              pushDebug('info', 'unique_visitor_tracked', { value });
+              return value;
+            })
+          );
+        }
+
+        if (document.referrer && !document.referrer.includes(location.hostname)) {
+          tasks.push(countApiHit(counterKeys.externalReferrer));
+        }
+
+        const results = await Promise.allSettled(tasks);
+        return results;
       }
 
+      async function updateVisitCount() {
+        const countEl = document.getElementById('visitCount');
+        const fallbackNext = getCachedVisits() + 1;
+        setCachedVisits(fallbackNext);
+        countEl.textContent = fallbackNext;
+
+        try {
+          const results = await trackVisitForms();
+          const totalResult = results[0];
+
+          if (totalResult && totalResult.status === 'fulfilled') {
+            setCachedVisits(totalResult.value);
+            countEl.textContent = totalResult.value;
+            console.log('[sit] global total visits', totalResult.value);
+            pushDebug('info', 'global_visit_tracked', {
+              total: totalResult.value,
+              navType: navigationType()
+            });
+          } else {
+            throw new Error('Total counter did not resolve');
+          }
+        } catch (error) {
+          console.warn('[sit] using local fallback counter', error);
+          pushDebug('warn', 'global_counter_fallback', {
+            fallback: fallbackNext,
+            message: String(error)
+          });
+        }
+      }
+
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState !== 'visible') {
+          return;
+        }
+
+        if (sessionStorage.getItem(sessionVisibilityKey)) {
+          return;
+        }
+
+        sessionStorage.setItem(sessionVisibilityKey, '1');
+
+        try {
+          const value = await countApiHit(counterKeys.visibilityReturn);
+          pushDebug('info', 'visibility_return_tracked', { value });
+        } catch (error) {
+          pushDebug('warn', 'visibility_return_failed', { message: String(error) });
+        }
+      });
+
       updateVisitCount();
+
+      window.countApiGet = countApiGet;
+      window.counterKeys = counterKeys;
     </script>
   </body>
 </html>

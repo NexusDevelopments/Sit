@@ -185,7 +185,7 @@
       <div class="header">
         <div>
           <h1>Counter Diagnostics</h1>
-          <p class="muted">Live status and logs for the client-only visit service.</p>
+          <p class="muted">Live global counters across all visit forms.</p>
         </div>
         <div class="pill" id="liveBadge">Checking status...</div>
       </div>
@@ -196,22 +196,22 @@
           <div class="value" id="modeValue">-</div>
         </div>
         <div class="card">
-          <div class="label">Last Visits Value</div>
+          <div class="label">Global Total Visits</div>
           <div class="value" id="visitsValue">-</div>
         </div>
         <div class="card">
-          <div class="label">Recorded Events</div>
+          <div class="label">Unique Visitors</div>
           <div class="value" id="hitsValue">-</div>
         </div>
         <div class="card">
-          <div class="label">Service State</div>
+          <div class="label">Visit Type Summary</div>
           <div class="value" id="stateValue">-</div>
         </div>
       </div>
 
       <div class="toolbar">
         <button id="refreshBtn">Refresh Status</button>
-        <button id="visitBtn" class="secondary">Simulate Visit</button>
+        <button id="visitBtn" class="secondary">Trigger Test Visit</button>
       </div>
 
       <section class="console">
@@ -226,6 +226,19 @@
     <script>
       const cacheKey = 'sit-visitor-counter-cache';
       const logKey = 'sit-debug-logs';
+      const countNamespace = 'nexusdevelopments-sit';
+
+      const counterKeys = {
+        total: 'total-visits',
+        homepage: 'homepage-visits',
+        cds: 'cds-visits',
+        unique: 'unique-visitors',
+        navNavigate: 'nav-navigate',
+        navReload: 'nav-reload',
+        navBackForward: 'nav-back-forward',
+        visibilityReturn: 'visibility-return',
+        externalReferrer: 'external-referrer'
+      };
 
       const els = {
         liveBadge: document.getElementById('liveBadge'),
@@ -266,6 +279,28 @@
         return Number.isFinite(visits) && visits >= 0 ? visits : 0;
       }
 
+      function countApiUrl(action, key) {
+        return `https://api.countapi.xyz/${action}/${countNamespace}/${key}`;
+      }
+
+      async function countApiGet(key) {
+        const response = await fetch(countApiUrl('get', key));
+        const data = await response.json();
+        if (!response.ok || typeof data.value !== 'number') {
+          throw new Error(`CountAPI get failed for ${key}`);
+        }
+        return data.value;
+      }
+
+      async function countApiHit(key) {
+        const response = await fetch(countApiUrl('hit', key));
+        const data = await response.json();
+        if (!response.ok || typeof data.value !== 'number') {
+          throw new Error(`CountAPI hit failed for ${key}`);
+        }
+        return data.value;
+      }
+
       function lineHtml(log) {
         const safeMeta = JSON.stringify(log.meta || {});
         return `<span class="line ${log.level}"><span class="ts">${log.time}</span> <span class="lvl">${log.level.toUpperCase()}</span> ${log.event} ${safeMeta}</span>`;
@@ -277,41 +312,75 @@
         els.consoleOut.scrollTop = els.consoleOut.scrollHeight;
       }
 
-      function renderStatus() {
+      async function renderStatus() {
         const logs = readLogs();
-        const visits = readVisits();
         const hasError = logs.some((log) => log.level === 'error');
+        const localVisits = readVisits();
 
-        els.modeValue.textContent = 'client-only (no serverless)';
-        els.visitsValue.textContent = String(visits);
-        els.hitsValue.textContent = String(logs.length);
+        let total = localVisits;
+        let unique = 0;
+        let navNavigate = 0;
+        let navReload = 0;
+        let navBack = 0;
+
+        try {
+          const values = await Promise.all([
+            countApiGet(counterKeys.total),
+            countApiGet(counterKeys.unique),
+            countApiGet(counterKeys.navNavigate),
+            countApiGet(counterKeys.navReload),
+            countApiGet(counterKeys.navBackForward)
+          ]);
+
+          total = values[0];
+          unique = values[1];
+          navNavigate = values[2];
+          navReload = values[3];
+          navBack = values[4];
+          pushLog('info', 'status_refresh_ok', { total, unique });
+        } catch (error) {
+          pushLog('warn', 'status_refresh_fallback', { message: String(error) });
+        }
+
+        els.modeValue.textContent = 'global countapi + local fallback';
+        els.visitsValue.textContent = String(total);
+        els.hitsValue.textContent = String(unique);
+        els.stateValue.textContent = `N:${navNavigate} R:${navReload} B:${navBack}`;
 
         if (hasError) {
-          els.stateValue.textContent = 'DEGRADED';
-          els.stateValue.className = 'value status-warn';
           els.liveBadge.textContent = 'Warning logs found';
         } else {
-          els.stateValue.textContent = 'HEALTHY';
-          els.stateValue.className = 'value status-ok';
           els.liveBadge.textContent = 'Healthy';
         }
+
+        els.stateValue.className = 'value status-ok';
 
         renderLogs(logs.slice(-80));
       }
 
-      function triggerVisit() {
-        const next = readVisits() + 1;
-        localStorage.setItem(cacheKey, String(next));
-        pushLog('info', 'visit_simulated_from_cds', { visits: next });
-        console.log('[sit] simulated visit', next);
+      async function triggerVisit() {
+        try {
+          const values = await Promise.all([
+            countApiHit(counterKeys.total),
+            countApiHit(counterKeys.cds)
+          ]);
+          pushLog('info', 'cds_test_visit_tracked', { total: values[0], cds: values[1] });
+        } catch (error) {
+          pushLog('error', 'cds_test_visit_failed', { message: String(error) });
+        }
+
         renderStatus();
       }
 
       document.getElementById('refreshBtn').addEventListener('click', renderStatus);
       document.getElementById('visitBtn').addEventListener('click', triggerVisit);
 
+      countApiHit(counterKeys.cds)
+        .then((value) => pushLog('info', 'cds_page_visit', { value }))
+        .catch((error) => pushLog('warn', 'cds_page_visit_failed', { message: String(error) }));
+
       renderStatus();
-      setInterval(renderStatus, 3000);
+      setInterval(renderStatus, 5000);
     </script>
   </body>
 </html>

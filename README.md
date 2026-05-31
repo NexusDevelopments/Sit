@@ -2,7 +2,8 @@
 
 Basic visitor counter site.
 
-This site uses a client-only visit counter (localStorage) to avoid serverless runtime issues.
+This site uses CountAPI directly from the browser to count global visits across all users.
+It also tracks different visit forms: normal navigation, reloads, and back/forward visits.
 
 ## Deploy on Vercel
 
