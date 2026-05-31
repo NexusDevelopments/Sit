@@ -1,0 +1,9 @@
+{
+  "name": "sit-visitor-counter",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A basic site that counts visits.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
