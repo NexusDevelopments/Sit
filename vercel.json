@@ -2,6 +2,10 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "/api-disabled.json"
+    },
+    {
       "source": "/",
       "destination": "/index.html"
     },
