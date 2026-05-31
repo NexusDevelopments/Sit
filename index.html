@@ -86,54 +86,47 @@
         <strong id="visitCount">...</strong>
         <span>visits</span>
       </div>
-      <p class="hint">Updates live every 5 seconds. Refresh still adds a new visit.</p>
+      <p class="hint">Refresh still adds a new visit.</p>
     </main>
 
     <script>
-      const namespace = 'sit-visitor-counter';
-      const key = 'homepage';
+      const cacheKey = 'sit-visitor-counter-cache';
+
+      function getCachedVisits() {
+        const raw = localStorage.getItem(cacheKey);
+        const value = Number(raw);
+        return Number.isFinite(value) && value >= 0 ? value : 0;
+      }
+
+      function setCachedVisits(value) {
+        localStorage.setItem(cacheKey, String(value));
+      }
 
       async function updateVisitCount() {
         const countEl = document.getElementById('visitCount');
+        countEl.textContent = getCachedVisits();
 
         try {
-          const response = await fetch(
-            `https://api.countapi.xyz/hit/${namespace}/${key}`
-          );
+          const response = await fetch('/api/visit');
           const data = await response.json();
 
-          if (!response.ok) {
-            countEl.textContent = 'error';
+          if (!response.ok || typeof data.visits !== 'number') {
+            const fallback = getCachedVisits() + 1;
+            setCachedVisits(fallback);
+            countEl.textContent = fallback;
             return;
           }
 
-          countEl.textContent = data.value;
+          setCachedVisits(data.visits);
+          countEl.textContent = data.visits;
         } catch {
-          countEl.textContent = 'error';
-        }
-      }
-
-      async function refreshVisitCount() {
-        const countEl = document.getElementById('visitCount');
-
-        try {
-          const response = await fetch(
-            `https://api.countapi.xyz/get/${namespace}/${key}`
-          );
-          const data = await response.json();
-
-          if (!response.ok) {
-            return;
-          }
-
-          countEl.textContent = data.value;
-        } catch {
-          // Keep the current value on transient network errors.
+          const fallback = getCachedVisits() + 1;
+          setCachedVisits(fallback);
+          countEl.textContent = fallback;
         }
       }
 
       updateVisitCount();
-      setInterval(refreshVisitCount, 5000);
     </script>
   </body>
 </html>
