@@ -17,6 +17,7 @@ Routes:
 
 - `/` main site
 - `/cds` diagnostics console page
+- `/upds` updates page (adds, fixes, known issues)
 - `/api/*` static fallback response (prevents serverless invocation errors)
 
 ## Run

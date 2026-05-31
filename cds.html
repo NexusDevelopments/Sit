@@ -262,6 +262,7 @@
           <div class="console-actions">
             <span id="logCount">0 lines</span>
             <button id="copyBtn" class="ghost tiny">Copy Logs</button>
+            <button id="copyJsonBtn" class="ghost tiny">Copy JSON</button>
             <span id="copyStatus" class="copy-status"></span>
           </div>
         </div>
@@ -295,6 +296,7 @@
         consoleOut: document.getElementById('consoleOut'),
         logCount: document.getElementById('logCount'),
         copyBtn: document.getElementById('copyBtn'),
+        copyJsonBtn: document.getElementById('copyJsonBtn'),
         copyStatus: document.getElementById('copyStatus')
       };
 
@@ -396,6 +398,35 @@
         }, 1400);
       }
 
+      async function copyLogsJson() {
+        if (!lastRenderedLogs.length) {
+          els.copyStatus.textContent = 'Nothing to copy';
+          return;
+        }
+
+        const text = JSON.stringify(lastRenderedLogs, null, 2);
+
+        try {
+          await navigator.clipboard.writeText(text);
+          els.copyStatus.textContent = 'JSON copied';
+        } catch {
+          const area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'absolute';
+          area.style.left = '-9999px';
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          document.body.removeChild(area);
+          els.copyStatus.textContent = 'JSON copied';
+        }
+
+        setTimeout(() => {
+          els.copyStatus.textContent = '';
+        }, 1400);
+      }
+
       async function renderStatus() {
         const logs = readLogs();
         const hasError = logs.some((log) => log.level === 'error');
@@ -459,6 +490,7 @@
       document.getElementById('refreshBtn').addEventListener('click', renderStatus);
       document.getElementById('visitBtn').addEventListener('click', triggerVisit);
       els.copyBtn.addEventListener('click', copyVisibleLogs);
+      els.copyJsonBtn.addEventListener('click', copyLogsJson);
 
       countApiHit(counterKeys.cds)
         .then((value) => pushLog('info', 'cds_page_visit', { value }))

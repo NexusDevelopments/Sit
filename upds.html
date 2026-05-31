@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Site Updates</title>
+    <style>
+      :root {
+        --bg: #0b1020;
+        --panel: #121a31;
+        --ink: #dde6fb;
+        --muted: #9badcc;
+        --accent: #60a5fa;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --border: #263655;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
+        background:
+          radial-gradient(circle at 8% 0%, rgba(96, 165, 250, 0.18), transparent 34%),
+          radial-gradient(circle at 90% 95%, rgba(52, 211, 153, 0.12), transparent 32%),
+          var(--bg);
+      }
+
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 18px 40px;
+      }
+
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.5rem, 3vw, 2.1rem);
+      }
+
+      .muted {
+        color: var(--muted);
+        margin: 8px 0 0;
+      }
+
+      .pill {
+        display: inline-flex;
+        border: 1px solid rgba(96, 165, 250, 0.45);
+        color: var(--accent);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        background: rgba(96, 165, 250, 0.15);
+      }
+
+      .timeline {
+        display: grid;
+        gap: 12px;
+      }
+
+      .release {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 14px;
+      }
+
+      .release-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .release-head h2 {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .date {
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      .section {
+        margin: 8px 0;
+      }
+
+      .section strong {
+        display: inline-block;
+        margin-bottom: 4px;
+        font-size: 0.88rem;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      li {
+        margin: 3px 0;
+        line-height: 1.4;
+      }
+
+      .added strong {
+        color: var(--ok);
+      }
+
+      .fixed strong {
+        color: var(--accent);
+      }
+
+      .known strong {
+        color: var(--warn);
+      }
+
+      .nav {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+
+      .nav a {
+        color: #bfdbfe;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <h1>Site Updates</h1>
+          <p class="muted">Recent adds, bug fixes, and known issues.</p>
+        </div>
+        <div class="pill">Live Changelog</div>
+      </div>
+
+      <section class="timeline">
+        <article class="release">
+          <div class="release-head">
+            <h2>v1.6 - Console Upgrade</h2>
+            <span class="date">May 31, 2026</span>
+          </div>
+          <div class="section added">
+            <strong>Added</strong>
+            <ul>
+              <li>Dark terminal-style diagnostics interface on /cds.</li>
+              <li>Copy Logs button for plain-text console output.</li>
+              <li>Copy JSON button for structured log export.</li>
+            </ul>
+          </div>
+          <div class="section fixed">
+            <strong>Fixed</strong>
+            <ul>
+              <li>Improved log readability for warnings and errors.</li>
+              <li>Clipboard fallback added for stricter browser modes.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="release">
+          <div class="release-head">
+            <h2>v1.5 - Global Visit Forms</h2>
+            <span class="date">May 31, 2026</span>
+          </div>
+          <div class="section added">
+            <strong>Added</strong>
+            <ul>
+              <li>Global counting across all users via CountAPI.</li>
+              <li>Visit-type counters: navigate, reload, back/forward, visibility return.</li>
+              <li>Unique visitor and external referrer tracking.</li>
+            </ul>
+          </div>
+          <div class="section fixed">
+            <strong>Fixed</strong>
+            <ul>
+              <li>Fallback counter behavior when the counter service is temporarily unavailable.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="release">
+          <div class="release-head">
+            <h2>v1.4 - Deploy Stability</h2>
+            <span class="date">May 31, 2026</span>
+          </div>
+          <div class="section fixed">
+            <strong>Fixed</strong>
+            <ul>
+              <li>Switched Vercel project to static builder mode.</li>
+              <li>Added static fallback for /api paths to avoid function invocation failures.</li>
+            </ul>
+          </div>
+          <div class="section known">
+            <strong>Known</strong>
+            <ul>
+              <li>CountAPI dependency may rate-limit very high traffic bursts.</li>
+            </ul>
+          </div>
+        </article>
+      </section>
+
+      <p class="nav">
+        Back to <a href="/">home</a> · Open <a href="/cds">diagnostics</a>
+      </p>
+    </div>
+  </body>
+</html>

@@ -5,6 +5,7 @@ const path = require('path');
 const port = process.env.PORT || 3000;
 const indexPath = path.join(__dirname, 'index.html');
 const cdsPath = path.join(__dirname, 'cds.html');
+const updsPath = path.join(__dirname, 'upds.html');
 const dataDir = path.join(__dirname, 'data');
 const counterFile = path.join(dataDir, 'visits.json');
 const startedAt = new Date().toISOString();
@@ -90,6 +91,21 @@ const server = http.createServer((req, res) => {
         pushLog('error', 'cds_page_load_failed', {});
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('Failed to load debug page');
+        return;
+      }
+
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(html);
+    });
+    return;
+  }
+
+  if (pathname === '/upds' || pathname === '/upds.html') {
+    fs.readFile(updsPath, 'utf8', (err, html) => {
+      if (err) {
+        pushLog('error', 'upds_page_load_failed', {});
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Failed to load updates page');
         return;
       }
 

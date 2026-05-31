@@ -18,6 +18,10 @@
     {
       "source": "/cds",
       "destination": "/cds.html"
+    },
+    {
+      "source": "/upds",
+      "destination": "/upds.html"
     }
   ]
 }
