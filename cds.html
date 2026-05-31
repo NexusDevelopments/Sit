@@ -6,20 +6,21 @@
     <title>Counter Debug Screen</title>
     <style>
       :root {
-        --bg: #f5f3ee;
-        --panel: #ffffff;
-        --ink: #1f2937;
-        --muted: #6b7280;
-        --accent: #0f766e;
-        --ok: #15803d;
-        --warn: #b45309;
-        --err: #b91c1c;
-        --console-bg: #1e1e1e;
-        --console-fg: #d4d4d4;
-        --console-muted: #8a8a8a;
-        --console-info: #4fc1ff;
-        --console-warn: #dcdcaa;
-        --console-error: #f48771;
+        --bg: #0a0e14;
+        --panel: #121926;
+        --ink: #d5deea;
+        --muted: #8fa0b8;
+        --accent: #3b82f6;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --err: #ef4444;
+        --console-bg: #0b111b;
+        --console-fg: #d7dde8;
+        --console-muted: #7f8ca1;
+        --console-info: #60a5fa;
+        --console-warn: #fbbf24;
+        --console-error: #f87171;
+        --console-border: #1b2940;
       }
 
       * {
@@ -31,8 +32,9 @@
         font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif;
         color: var(--ink);
         background:
-          radial-gradient(circle at 10% 10%, rgba(15, 118, 110, 0.12), transparent 45%),
-          radial-gradient(circle at 90% 90%, rgba(21, 128, 61, 0.08), transparent 40%),
+          radial-gradient(circle at 8% 5%, rgba(59, 130, 246, 0.18), transparent 32%),
+          radial-gradient(circle at 90% 92%, rgba(16, 185, 129, 0.1), transparent 30%),
+          linear-gradient(180deg, rgba(59, 130, 246, 0.07), transparent 45%),
           var(--bg);
       }
 
@@ -68,8 +70,9 @@
         padding: 8px 12px;
         font-size: 0.9rem;
         font-weight: 600;
-        background: rgba(15, 118, 110, 0.12);
-        color: var(--accent);
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(96, 165, 250, 0.35);
+        color: #93c5fd;
       }
 
       .grid {
@@ -81,9 +84,10 @@
 
       .card {
         background: var(--panel);
-        border: 1px solid rgba(31, 41, 55, 0.1);
+        border: 1px solid #243248;
         border-radius: 14px;
         padding: 14px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
       }
 
       .label {
@@ -117,33 +121,55 @@
       }
 
       button {
-        border: 0;
+        border: 1px solid #2f4770;
         border-radius: 10px;
         padding: 10px 14px;
         font-size: 0.92rem;
         font-weight: 600;
         cursor: pointer;
-        background: var(--accent);
-        color: #fff;
+        background: #1d4ed8;
+        color: #e5edff;
       }
 
       button.secondary {
-        background: #374151;
+        background: #1e293b;
+        border-color: #334155;
+      }
+
+      button.ghost {
+        background: transparent;
+        border-color: #2d3b52;
+        color: #bfdbfe;
       }
 
       .console {
         border-radius: 14px;
         overflow: hidden;
-        border: 1px solid rgba(31, 41, 55, 0.12);
+        border: 1px solid var(--console-border);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.3);
       }
 
       .console-head {
-        background: #2a2d2e;
-        color: #e5e7eb;
+        background: #111927;
+        color: #dbe8ff;
         padding: 10px 12px;
         font-size: 0.86rem;
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--console-border);
+      }
+
+      .console-actions {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .tiny {
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 0.78rem;
       }
 
       .console-body {
@@ -161,6 +187,7 @@
 
       .line {
         display: block;
+        padding: 1px 0;
       }
 
       .line .ts {
@@ -177,6 +204,21 @@
 
       .line.error .lvl {
         color: var(--console-error);
+      }
+
+      .line .event {
+        color: #c7d2e5;
+      }
+
+      .line .meta {
+        color: #8ea0bc;
+      }
+
+      .copy-status {
+        color: #93c5fd;
+        font-size: 0.78rem;
+        min-width: 78px;
+        text-align: right;
       }
     </style>
   </head>
@@ -217,7 +259,11 @@
       <section class="console">
         <div class="console-head">
           <span>Debug Console</span>
-          <span id="logCount">0 lines</span>
+          <div class="console-actions">
+            <span id="logCount">0 lines</span>
+            <button id="copyBtn" class="ghost tiny">Copy Logs</button>
+            <span id="copyStatus" class="copy-status"></span>
+          </div>
         </div>
         <div class="console-body" id="consoleOut"></div>
       </section>
@@ -247,8 +293,12 @@
         hitsValue: document.getElementById('hitsValue'),
         stateValue: document.getElementById('stateValue'),
         consoleOut: document.getElementById('consoleOut'),
-        logCount: document.getElementById('logCount')
+        logCount: document.getElementById('logCount'),
+        copyBtn: document.getElementById('copyBtn'),
+        copyStatus: document.getElementById('copyStatus')
       };
+
+      let lastRenderedLogs = [];
 
       function readLogs() {
         try {
@@ -303,13 +353,47 @@
 
       function lineHtml(log) {
         const safeMeta = JSON.stringify(log.meta || {});
-        return `<span class="line ${log.level}"><span class="ts">${log.time}</span> <span class="lvl">${log.level.toUpperCase()}</span> ${log.event} ${safeMeta}</span>`;
+        return `<span class="line ${log.level}"><span class="ts">${log.time}</span> <span class="lvl">${log.level.toUpperCase()}</span> <span class="event">${log.event}</span> <span class="meta">${safeMeta}</span></span>`;
+      }
+
+      function formatLogLine(log) {
+        const meta = JSON.stringify(log.meta || {});
+        return `${log.time} ${String(log.level || 'info').toUpperCase()} ${log.event} ${meta}`;
       }
 
       function renderLogs(logs) {
+        lastRenderedLogs = logs.slice();
         els.logCount.textContent = `${logs.length} lines`;
         els.consoleOut.innerHTML = logs.map(lineHtml).join('');
         els.consoleOut.scrollTop = els.consoleOut.scrollHeight;
+      }
+
+      async function copyVisibleLogs() {
+        const text = lastRenderedLogs.map(formatLogLine).join('\n');
+        if (!text) {
+          els.copyStatus.textContent = 'Nothing to copy';
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(text);
+          els.copyStatus.textContent = 'Copied';
+        } catch {
+          const area = document.createElement('textarea');
+          area.value = text;
+          area.setAttribute('readonly', '');
+          area.style.position = 'absolute';
+          area.style.left = '-9999px';
+          document.body.appendChild(area);
+          area.select();
+          document.execCommand('copy');
+          document.body.removeChild(area);
+          els.copyStatus.textContent = 'Copied';
+        }
+
+        setTimeout(() => {
+          els.copyStatus.textContent = '';
+        }, 1400);
       }
 
       async function renderStatus() {
@@ -374,6 +458,7 @@
 
       document.getElementById('refreshBtn').addEventListener('click', renderStatus);
       document.getElementById('visitBtn').addEventListener('click', triggerVisit);
+      els.copyBtn.addEventListener('click', copyVisibleLogs);
 
       countApiHit(counterKeys.cds)
         .then((value) => pushLog('info', 'cds_page_visit', { value }))
