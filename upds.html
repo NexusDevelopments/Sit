@@ -150,6 +150,27 @@
       <section class="timeline">
         <article class="release">
           <div class="release-head">
+            <h2>v1.7 - Offline-Safe Counting</h2>
+            <span class="date">May 31, 2026</span>
+          </div>
+          <div class="section added">
+            <strong>Added</strong>
+            <ul>
+              <li>Fully local visit tracking with no external fetch dependency.</li>
+              <li>Local visit-form counters that keep working even when third-party services fail.</li>
+            </ul>
+          </div>
+          <div class="section fixed">
+            <strong>Fixed</strong>
+            <ul>
+              <li>Removed repeated fetch warnings from the diagnostics console.</li>
+              <li>Stopped external counter failures from spamming status refresh logs.</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="release">
+          <div class="release-head">
             <h2>v1.6 - Console Upgrade</h2>
             <span class="date">May 31, 2026</span>
           </div>
@@ -178,7 +199,7 @@
           <div class="section added">
             <strong>Added</strong>
             <ul>
-              <li>Global counting across all users via CountAPI.</li>
+              <li>Global-style counting design across visit forms.</li>
               <li>Visit-type counters: navigate, reload, back/forward, visibility return.</li>
               <li>Unique visitor and external referrer tracking.</li>
             </ul>
@@ -206,7 +227,7 @@
           <div class="section known">
             <strong>Known</strong>
             <ul>
-              <li>CountAPI dependency may rate-limit very high traffic bursts.</li>
+              <li>Visit totals are browser-local rather than shared from a backend.</li>
             </ul>
           </div>
         </article>

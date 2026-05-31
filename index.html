@@ -96,43 +96,34 @@
       const logKey = 'sit-debug-logs';
       const uniqueKey = 'sit-unique-visitor-tracked-v1';
       const sessionVisibilityKey = 'sit-visibility-tracked';
-      const countNamespace = 'nexusdevelopments-sit';
+      const statsKey = 'sit-visit-stats-v2';
 
-      const counterKeys = {
-        total: 'total-visits',
-        homepage: 'homepage-visits',
-        unique: 'unique-visitors',
-        navNavigate: 'nav-navigate',
-        navReload: 'nav-reload',
-        navBackForward: 'nav-back-forward',
-        visibilityReturn: 'visibility-return',
-        externalReferrer: 'external-referrer'
-      };
-
-      function countApiUrl(action, key) {
-        return `https://api.countapi.xyz/${action}/${countNamespace}/${key}`;
+      function defaultStats() {
+        return {
+          total: 0,
+          homepage: 0,
+          unique: 0,
+          navNavigate: 0,
+          navReload: 0,
+          navBackForward: 0,
+          visibilityReturn: 0,
+          externalReferrer: 0,
+          lastVisitAt: null
+        };
       }
 
-      async function countApiHit(key) {
-        const response = await fetch(countApiUrl('hit', key));
-        const data = await response.json();
-
-        if (!response.ok || typeof data.value !== 'number') {
-          throw new Error(`CountAPI hit failed for ${key}`);
+      function readStats() {
+        try {
+          const raw = localStorage.getItem(statsKey);
+          const parsed = raw ? JSON.parse(raw) : {};
+          return { ...defaultStats(), ...parsed };
+        } catch {
+          return defaultStats();
         }
-
-        return data.value;
       }
 
-      async function countApiGet(key) {
-        const response = await fetch(countApiUrl('get', key));
-        const data = await response.json();
-
-        if (!response.ok || typeof data.value !== 'number') {
-          throw new Error(`CountAPI get failed for ${key}`);
-        }
-
-        return data.value;
+      function writeStats(stats) {
+        localStorage.setItem(statsKey, JSON.stringify(stats));
       }
 
       function navigationType() {
@@ -168,70 +159,49 @@
         localStorage.setItem(cacheKey, String(value));
       }
 
-      async function trackVisitForms() {
+      function trackVisitForms() {
+        const stats = readStats();
         const navType = navigationType();
-        const navKey =
-          navType === 'reload'
-            ? counterKeys.navReload
-            : navType === 'back_forward'
-              ? counterKeys.navBackForward
-              : counterKeys.navNavigate;
+        stats.total += 1;
+        stats.homepage += 1;
+        stats.lastVisitAt = new Date().toISOString();
 
-        const tasks = [
-          countApiHit(counterKeys.total),
-          countApiHit(counterKeys.homepage),
-          countApiHit(navKey)
-        ];
+        if (navType === 'reload') {
+          stats.navReload += 1;
+        } else if (navType === 'back_forward') {
+          stats.navBackForward += 1;
+        } else {
+          stats.navNavigate += 1;
+        }
 
         if (!localStorage.getItem(uniqueKey)) {
-          tasks.push(
-            countApiHit(counterKeys.unique).then((value) => {
-              localStorage.setItem(uniqueKey, '1');
-              pushDebug('info', 'unique_visitor_tracked', { value });
-              return value;
-            })
-          );
+          stats.unique += 1;
+          localStorage.setItem(uniqueKey, '1');
+          pushDebug('info', 'unique_visitor_tracked', { value: stats.unique });
         }
 
         if (document.referrer && !document.referrer.includes(location.hostname)) {
-          tasks.push(countApiHit(counterKeys.externalReferrer));
+          stats.externalReferrer += 1;
         }
 
-        const results = await Promise.allSettled(tasks);
-        return results;
+        writeStats(stats);
+        return { stats, navType };
       }
 
-      async function updateVisitCount() {
+      function updateVisitCount() {
         const countEl = document.getElementById('visitCount');
-        const fallbackNext = getCachedVisits() + 1;
-        setCachedVisits(fallbackNext);
-        countEl.textContent = fallbackNext;
-
-        try {
-          const results = await trackVisitForms();
-          const totalResult = results[0];
-
-          if (totalResult && totalResult.status === 'fulfilled') {
-            setCachedVisits(totalResult.value);
-            countEl.textContent = totalResult.value;
-            console.log('[sit] global total visits', totalResult.value);
-            pushDebug('info', 'global_visit_tracked', {
-              total: totalResult.value,
-              navType: navigationType()
-            });
-          } else {
-            throw new Error('Total counter did not resolve');
-          }
-        } catch (error) {
-          console.warn('[sit] using local fallback counter', error);
-          pushDebug('warn', 'global_counter_fallback', {
-            fallback: fallbackNext,
-            message: String(error)
-          });
-        }
+        const { stats, navType } = trackVisitForms();
+        setCachedVisits(stats.total);
+        countEl.textContent = stats.total;
+        console.log('[sit] total visits', stats.total);
+        pushDebug('info', 'global_visit_tracked', {
+          total: stats.total,
+          navType,
+          mode: 'local-browser'
+        });
       }
 
-      document.addEventListener('visibilitychange', async () => {
+      document.addEventListener('visibilitychange', () => {
         if (document.visibilityState !== 'visible') {
           return;
         }
@@ -242,18 +212,13 @@
 
         sessionStorage.setItem(sessionVisibilityKey, '1');
 
-        try {
-          const value = await countApiHit(counterKeys.visibilityReturn);
-          pushDebug('info', 'visibility_return_tracked', { value });
-        } catch (error) {
-          pushDebug('warn', 'visibility_return_failed', { message: String(error) });
-        }
+        const stats = readStats();
+        stats.visibilityReturn += 1;
+        writeStats(stats);
+        pushDebug('info', 'visibility_return_tracked', { value: stats.visibilityReturn });
       });
 
       updateVisitCount();
-
-      window.countApiGet = countApiGet;
-      window.counterKeys = counterKeys;
     </script>
   </body>
 </html>

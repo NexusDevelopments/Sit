@@ -2,8 +2,8 @@
 
 Basic visitor counter site.
 
-This site uses CountAPI directly from the browser to count global visits across all users.
-It also tracks different visit forms: normal navigation, reloads, and back/forward visits.
+This site uses browser storage to count visits without any external service dependency.
+It tracks different visit forms: normal navigation, reloads, back/forward visits, visibility returns, and diagnostics test visits.
 
 ## Deploy on Vercel
 
